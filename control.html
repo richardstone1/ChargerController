@@ -1,0 +1,416 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pico W Charger Control</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #0b0f14; color: #e5eef8; }
+    .card { background: #121922; border: 1px solid #2b3441; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+    .row { margin-bottom: 10px; }
+    code { color: #8bd5ff; }
+    .badge { border-radius: 8px; padding: 2px 8px; font-size: 12px; border: 1px solid #2b3441; }
+    .ok { color: #9ef7b0; }
+    .warn { color: #ffd58a; }
+    .bad { color: #ff9ea0; }
+    canvas { width: 100%; max-width: 900px; height: 220px; border: 1px solid #2b3441; border-radius: 8px; background: #0a0f16; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Pico W Makita Clone Charger</h2>
+
+  <div class="card">
+    <div><b>System:</b> <code id="sys"></code></div>
+    <div><b>Power:</b> <code>DC rails (not sensed on Pico)</code></div>
+    <div>
+      <b>V Sensor:</b> <code id="vsok"></code> |
+      <b>I Sensor:</b> <code id="isok"></code> |
+      <b>T Sensor:</b> <code id="tsok"></code>
+    </div>
+    <div><b>Battery (Therm):</b> <code id="btherm"></code> | <b>Battery Present:</b> <code id="bpresent"></code></div>
+    <div><b>Gate:</b> <code id="bgate"></code> | <b>Therm Override:</b> <code id="thovr"></code></div>
+    <div><b>Preset:</b> <code id="preset"></code> @ <code id="presetv"></code> V</div>
+    <div><b>Mode:</b> <code id="mode"></code> | <b>Discharge State:</b> <code id="dstate"></code></div>
+    <div><b>Fan:</b> <code id="fanstate"></code></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div>Voltage: <code id="v"></code> V</div>
+      <div>Current: <code id="i"></code> A</div>
+      <div>Temp: <code id="t"></code> C</div>
+      <div>Peak Temp: <code id="tpeak"></code> C</div>
+      <div>Temp Limit: <code id="tmax"></code> C</div>
+      <div>Thermal Charge Cutoff: <code id="thard"></code> C</div>
+      <div>Fan: <code id="f"></code> % | RPM: <code id="frpm"></code></div>
+      <div>Cooldown: <code id="cool"></code> (<code id="coolp"></code> s)</div>
+      <div>Source Detect: <code id="srcdet"></code> / Source Stopped: <code id="srcstop"></code></div>
+      <div>Charge Enabled: <code id="charge"></code></div>
+      <div>Fault: <code id="fault"></code></div>
+      <div>Cumulative Ah: <code id="ah"></code></div>
+      <div>Cumulative Wh: <code id="wh"></code></div>
+    </div>
+    <div class="card">
+      <div class="row"><span class="badge ok">Local simulation (offline; use Pico web UI on device for live)</span></div>
+      <div class="row">
+        <button onclick="setMode('charge')">Mode Charge</button>
+        <button onclick="setMode('discharge')">Mode Discharge</button>
+        <button onclick="setCharge(true)">Charge ON</button>
+        <button onclick="setCharge(false)">Charge OFF</button>
+        <button onclick="setDischarge(true)">Discharge ON</button>
+        <button onclick="setDischarge(false)">Discharge OFF</button>
+        <button onclick="setAbort(true)">ABORT</button>
+        <button onclick="setAbort(false)">Clear Abort</button>
+      </div>
+      <div class="row">
+        <button onclick="setPreset('storage')">Storage</button>
+        <button onclick="setPreset('hotready')">HotReady</button>
+        <button onclick="setPreset('user1')">User1</button>
+        <button onclick="setPreset('user2')">User2</button>
+        <button onclick="setPreset('none')">None</button>
+      </div>
+      <div class="row">
+        <button onclick="setFanEnabled(true)">Fan Enable</button>
+        <button onclick="setFanEnabled(false)">Fan Disable</button>
+        <button onclick="setFanAuto(true)">Fan Auto</button>
+        <button onclick="setFanAuto(false)">Fan Manual</button>
+        <button onclick="setBatteryGate(true)">Batt Gate On</button>
+        <button onclick="setBatteryGate(false)">Batt Gate Off</button>
+        <button onclick="setBatteryPresentOverride(true)">Force Present On</button>
+        <button onclick="setBatteryPresentOverride(false)">Force Present Off</button>
+        <button onclick="setThermOverride(true)">Therm Override On</button>
+        <button onclick="setThermOverride(false)">Therm Override Off</button>
+      </div>
+      <div class="row">
+        <label>Manual Fan %:</label>
+        <input id="fanpct" type="number" min="0" max="100" value="55" />
+        <button onclick="applyManualFan()">Set</button>
+      </div>
+      <div class="row">
+        <label>V cutoff:</label><input id="cutv" type="number" step="0.01" value="21.0" />
+        <label>I minimum:</label><input id="cuti" type="number" step="0.01" value="0.25" />
+      </div>
+      <div class="row">
+        <label>T max:</label><input id="tmaxin" type="number" step="0.1" value="45.0" />
+        <label>Source min I:</label><input id="srci" type="number" step="0.01" value="0.25" />
+      </div>
+      <div class="row">
+        <label>Storage V:</label><input id="pstor" type="number" step="0.01" value="18.40" />
+        <label>HotReady V:</label><input id="phot" type="number" step="0.01" value="20.20" />
+      </div>
+      <div class="row">
+        <label>User1 V:</label><input id="p1" type="number" step="0.01" value="19.00" />
+        <label>User2 V:</label><input id="p2" type="number" step="0.01" value="20.60" />
+      </div>
+      <div class="row">
+        <label>Cooldown dT:</label><input id="cooldt" type="number" step="0.01" value="0.08" />
+        <label>Stable s:</label><input id="cools" type="number" step="1" value="20" />
+        <button onclick="applyLimits()">Apply Limits</button>
+      </div>
+      <div class="row">
+        <label>D target V:</label><input id="dtgt" type="number" step="0.01" value="15.00" />
+        <label>D undershoot V:</label><input id="dund" type="number" step="0.01" value="0.05" />
+      </div>
+      <div class="row">
+        <label>D rebound tol V:</label><input id="drbt" type="number" step="0.01" value="0.02" />
+        <label>D rest s:</label><input id="drst" type="number" step="0.1" value="4.0" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">Voltage / Current</div>
+    <canvas id="vi"></canvas>
+  </div>
+  <div class="card">
+    <div class="row">Cumulative Ah / Wh</div>
+    <canvas id="ew"></canvas>
+  </div>
+
+  <script>
+    const hist = { v: [], i: [], ah: [], wh: [] };
+    const MAX_POINTS = 240;
+    const st = {
+      v: 18.1, i: 4.9, t: 33.0, tpeak: 33.0,
+      tmax: 45.0, thard: 45.0,
+      fan: 62.0, fanRpm: 3100, fanTach: false,
+      cool: false, coolp: 0.0, charge: true, fault: "none",
+      ah: 0.000, wh: 0.000, srcdet: true, srcstop: false,
+      system: "CHARGING",
+      abort: false,
+      fanEnabled: true,
+      fanAuto: true,
+      fanManualPct: 55.0,
+      cutV: 21.0,
+      minI: 0.25,
+      srcMinI: 0.25,
+      cooldownDt: 0.08,
+      cooldownStableS: 20.0,
+      activePreset: "none",
+      presetStorage: 18.4,
+      presetHotready: 20.2,
+      presetUser1: 19.0,
+      presetUser2: 20.6,
+      mode: "charge",
+      dischargeOn: false,
+      dischargeState: "idle",
+      dTarget: 15.0,
+      dUnder: 0.05,
+      dReboundTol: 0.02,
+      dRestS: 4.0,
+      dRestCounter: 0.0,
+      dLastCutoffV: 0.0,
+      dLastReboundV: 0.0,
+      requireBatteryPresent: true,
+      batteryPresentOverride: false,
+      thermOverride: false,
+      thermPresent: true
+    };
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    function drawSeries(canvasId, s1, s2, c1, c2) {
+      const cv = document.getElementById(canvasId);
+      const ctx = cv.getContext("2d");
+      const w = cv.width = cv.clientWidth;
+      const h = cv.height = cv.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+      if (s1.length < 2) return;
+      let mn = Math.min(...s1, ...s2);
+      let mx = Math.max(...s1, ...s2);
+      if (mx <= mn) mx = mn + 1;
+      const pad = 10;
+      const sx = (w - 2 * pad) / (s1.length - 1);
+      const sy = (h - 2 * pad) / (mx - mn);
+      function py(v) { return h - pad - (v - mn) * sy; }
+      function draw(arr, color) {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        for (let k = 0; k < arr.length; k++) {
+          const x = pad + k * sx;
+          const y = py(arr[k]);
+          if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      draw(s1, c1);
+      draw(s2, c2);
+      ctx.fillStyle = "#aab7c8";
+      ctx.fillText(`min ${mn.toFixed(2)} max ${mx.toFixed(2)}`, 10, 14);
+    }
+
+    function redraw() {
+      drawSeries("vi", hist.v, hist.i, "#6ee7ff", "#fda4af");
+      drawSeries("ew", hist.ah, hist.wh, "#86efac", "#fcd34d");
+    }
+
+    function updateModel() {
+      st.thermPresent = st.t > -20 && st.t < 90;
+      const batteryPresent = st.thermPresent || st.batteryPresentOverride;
+
+      if (st.requireBatteryPresent && !batteryPresent) {
+        st.charge = false;
+        st.dischargeOn = false;
+        st.dischargeState = "idle";
+        st.system = "IDLE";
+      }
+
+      // Simulated charger lifecycle phases
+      let presetTarget = null;
+      if (st.activePreset === "storage") presetTarget = st.presetStorage;
+      else if (st.activePreset === "hotready") presetTarget = st.presetHotready;
+      else if (st.activePreset === "user1") presetTarget = st.presetUser1;
+      else if (st.activePreset === "user2") presetTarget = st.presetUser2;
+
+      if (st.mode === "charge" && st.charge && !st.abort) {
+        st.v = clamp(st.v + 0.005 + (Math.random() - 0.5) * 0.01, 16.0, 20.9);
+        st.i = clamp(st.i - 0.004 + (Math.random() - 0.5) * 0.05, 0.4, 6.0);
+        st.t = clamp(st.t + 0.015 + (Math.random() - 0.5) * 0.12, 23.0, 46.5);
+        if ((presetTarget !== null && st.v >= presetTarget) || st.v > 20.75 || st.i < 0.7) {
+          st.charge = false;
+          st.cool = true;
+          st.system = "COOLDOWN";
+        } else {
+          st.system = "CHARGING";
+        }
+      } else if (st.mode === "discharge" && st.dischargeOn && !st.abort) {
+        if (st.dischargeState === "idle" || st.dischargeState === "done") {
+          if (st.v > st.dTarget) st.dischargeState = "pull_down";
+          else st.dischargeState = "done";
+        }
+        if (st.dischargeState === "pull_down") {
+          st.i = clamp(-4.8 + (Math.random() - 0.5) * 0.25, -8.0, -0.2);
+          st.v = clamp(st.v - 0.015 + (Math.random() - 0.5) * 0.02, 10.0, 21.0);
+          st.t = clamp(st.t + 0.012 + (Math.random() - 0.5) * 0.10, 23.0, 46.5);
+          if (st.v <= (st.dTarget - st.dUnder)) {
+            st.dischargeState = "rest";
+            st.dLastCutoffV = st.v;
+            st.dRestCounter = 0;
+          }
+        } else if (st.dischargeState === "rest") {
+          st.i = clamp((Math.random() - 0.5) * 0.08, -0.1, 0.1);
+          st.v = clamp(st.v + 0.008 + (Math.random() - 0.5) * 0.01, 10.0, 21.0);
+          st.t = clamp(st.t - 0.01 + (Math.random() - 0.5) * 0.05, 23.0, 46.5);
+          st.dRestCounter += 1.0;
+          if (st.dRestCounter >= st.dRestS) {
+            st.dLastReboundV = Math.max(0, st.v - st.dLastCutoffV);
+            if (st.v <= st.dTarget && st.dLastReboundV <= st.dReboundTol) {
+              st.dischargeState = "done";
+              st.dischargeOn = false;
+            } else {
+              st.dischargeState = "pull_down";
+            }
+          }
+        } else {
+          st.i = clamp((Math.random() - 0.5) * 0.04, -0.05, 0.05);
+          st.t = clamp(st.t - 0.02 + (Math.random() - 0.5) * 0.05, 23.0, 46.5);
+        }
+      } else {
+        st.i = clamp(st.i - 0.05 + (Math.random() - 0.5) * 0.02, -0.05, 0.5);
+        st.t = clamp(st.t - 0.03 + (Math.random() - 0.5) * 0.08, 24.0, 46.0);
+        if (st.cool) {
+          st.coolp = clamp(st.coolp + 1, 0, 40);
+          if (st.coolp > 20 && Math.abs(Math.random() - 0.5) < 0.2) {
+            st.cool = false;
+            st.system = "IDLE";
+          }
+        } else {
+          st.system = "IDLE";
+          st.coolp = 0;
+        }
+      }
+
+      let autoFan = st.t >= 40 ? 100 : clamp((st.t - 28) * 6.5, 0, 95);
+      if (st.cool) autoFan = Math.max(autoFan, 35);
+      st.fan = st.fanAuto ? autoFan : st.fanManualPct;
+      if (!st.fanEnabled) st.fan = 0;
+      st.fanRpm = Math.round((st.fan / 100) * 5000);
+      st.tpeak = Math.max(st.tpeak, st.t);
+      st.ah += Math.max(0, st.i) / 3600.0;
+      st.wh += Math.max(0, st.i) * st.v / 3600.0;
+      const thermUsable = st.thermPresent && !st.thermOverride;
+      st.fault = "none";
+      if (st.abort) st.fault = "aborted";
+      else if (st.v >= st.cutV) st.fault = "over_voltage";
+      else if (st.i > 16.5) st.fault = "over_current_abs";
+      else if (thermUsable && st.t >= st.tmax) st.fault = "thermal_cutoff";
+      if (st.srcdet && st.mode === "charge" && st.charge && st.i < st.srcMinI) st.srcstop = true;
+      else if (st.i >= st.srcMinI) st.srcstop = false;
+      if (st.srcstop) st.charge = false;
+      if (st.mode === "discharge" && st.dischargeOn && st.fault === "none") {
+        st.system = "DISCHARGE_" + st.dischargeState.toUpperCase();
+      } else if (st.fault !== "none") st.system = "FAULT_" + st.fault;
+
+      hist.v.push(st.v); hist.i.push(st.i); hist.ah.push(st.ah); hist.wh.push(st.wh);
+      while (hist.v.length > MAX_POINTS) {
+        hist.v.shift(); hist.i.shift(); hist.ah.shift(); hist.wh.shift();
+      }
+    }
+
+    function render() {
+      sys.textContent = st.system;
+      vsok.textContent = "ok";
+      isok.textContent = "ok";
+      tsok.textContent = "ok";
+      const batteryPresent = st.thermPresent || st.batteryPresentOverride;
+      btherm.textContent = st.thermPresent ? "live" : "not-detected";
+      bpresent.textContent = batteryPresent ? "yes" : "no";
+      bgate.textContent = st.requireBatteryPresent ? (st.batteryPresentOverride ? "required + force-present" : "required") : "not-required";
+      thovr.textContent = st.thermOverride ? "on (thermal bypass)" : (st.thermPresent ? "off (live)" : "off (no thermistor)");
+      mode.textContent = st.mode;
+      dstate.textContent = st.dischargeState;
+      preset.textContent = st.activePreset;
+      const pv = st.activePreset === "storage" ? st.presetStorage :
+                 st.activePreset === "hotready" ? st.presetHotready :
+                 st.activePreset === "user1" ? st.presetUser1 :
+                 st.activePreset === "user2" ? st.presetUser2 : 0;
+      presetv.textContent = st.activePreset === "none" ? "-" : pv.toFixed(2);
+      fanstate.textContent = st.fanTach ? "enabled/auto, tach" : "enabled/auto, pwm-est";
+      if (!st.fanEnabled) fanstate.textContent = "disabled";
+      else if (!st.fanAuto) fanstate.textContent = "enabled/manual, pwm-est";
+
+      v.textContent = st.v.toFixed(3);
+      i.textContent = st.i.toFixed(3);
+      t.textContent = st.t.toFixed(2);
+      tpeak.textContent = st.tpeak.toFixed(2);
+      tmax.textContent = st.tmax.toFixed(1);
+      thard.textContent = st.thard.toFixed(1);
+      f.textContent = st.fan.toFixed(1);
+      frpm.textContent = st.fanTach ? `${st.fanRpm}` : `${st.fanRpm} est`;
+      cool.textContent = st.cool ? "active" : "idle";
+      coolp.textContent = st.coolp.toFixed(1);
+      srcdet.textContent = st.srcdet ? "on" : "off";
+      srcstop.textContent = st.srcstop ? "yes" : "no";
+      charge.textContent = st.charge ? "true" : "false";
+      fault.textContent = st.fault;
+      ah.textContent = st.ah.toFixed(5);
+      wh.textContent = st.wh.toFixed(5);
+      redraw();
+    }
+
+    function setMode(modeName) {
+      if (st.abort) return;
+      st.mode = modeName;
+      if (modeName === "charge") {
+        st.dischargeOn = false;
+        st.charge = true;
+      } else {
+        st.charge = false;
+        st.dischargeOn = true;
+        st.dischargeState = "idle";
+      }
+    }
+    function setCharge(on) {
+      if (!st.abort) {
+        st.mode = "charge";
+        st.charge = !!on;
+      }
+    }
+    function setDischarge(on) {
+      if (!st.abort) {
+        st.mode = "discharge";
+        st.dischargeOn = !!on;
+        if (on) st.dischargeState = "idle";
+      }
+    }
+    function setAbort(on) {
+      st.abort = !!on;
+      if (st.abort) {
+        st.charge = false;
+        st.dischargeOn = false;
+      }
+    }
+    function setFanEnabled(on) { st.fanEnabled = !!on; }
+    function setFanAuto(on) { st.fanAuto = !!on; }
+    function setBatteryGate(on) { st.requireBatteryPresent = !!on; }
+    function setBatteryPresentOverride(on) { st.batteryPresentOverride = !!on; }
+    function setThermOverride(on) { st.thermOverride = !!on; }
+    function setPreset(name) { st.activePreset = name; }
+    function applyManualFan() { st.fanManualPct = clamp(Number(fanpct.value || 0), 0, 100); st.fanAuto = false; }
+    function applyLimits() {
+      st.cutV = Number(cutv.value || st.cutV);
+      st.minI = Number(cuti.value || st.minI);
+      st.srcMinI = st.minI;
+      st.tmax = Number(tmaxin.value || st.tmax);
+      st.srcMinI = Number(srci.value || st.srcMinI);
+      st.cooldownDt = Number(cooldt.value || st.cooldownDt);
+      st.cooldownStableS = Number(cools.value || st.cooldownStableS);
+      st.presetStorage = Number(pstor.value || st.presetStorage);
+      st.presetHotready = Number(phot.value || st.presetHotready);
+      st.presetUser1 = Number(p1.value || st.presetUser1);
+      st.presetUser2 = Number(p2.value || st.presetUser2);
+      st.dTarget = Number(dtgt.value || st.dTarget);
+      st.dUnder = Number(dund.value || st.dUnder);
+      st.dReboundTol = Number(drbt.value || st.dReboundTol);
+      st.dRestS = Number(drst.value || st.dRestS);
+    }
+
+    setInterval(() => { updateModel(); render(); }, 1000);
+    window.addEventListener("resize", redraw);
+    for (let i = 0; i < 30; i++) updateModel();
+    render();
+  </script>
+</body>
+</html>

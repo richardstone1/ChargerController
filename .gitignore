@@ -1,0 +1,19 @@
+# Python / MicroPython
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Secrets (never commit Wi-Fi passwords — use a local secrets file if you split them out)
+secrets.py
+wifi_secrets.py
+
+# Firmware build artifacts (if you add build scripts later)
+build/
+*.mpy

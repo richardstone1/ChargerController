@@ -1,0 +1,5 @@
+# Normalize line endings for collaboration
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.html text eol=lf

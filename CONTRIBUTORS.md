@@ -2,4 +2,4 @@
 
 Add your name here when you contribute (see `CONTRIBUTING.md`).
 
-- *(Project maintainers — edit this file as people join.)*
+- Richard Stone ([@richardstone1](https://github.com/richardstone1)) — ChargerController, STM32OBI port

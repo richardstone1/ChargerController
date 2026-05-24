@@ -23,6 +23,14 @@ The **STM32F103 “Blue Pill”** firmware in `STM32OBI/` is a **PlatformIO port
 
 Vendored `STM32OBI/lib/OneWire/` matches the OBI-modified OneWire2 library from that upstream tree.
 
+## Open Battery Information (OBI) — `tools/attiny1616-witness/`
+
+**ATtiny1616** witness firmware (Makita 1-Wire + local ADC) in `tools/attiny1616-witness/`:
+
+- **Upstream:** same ArduinoOBI command sequences and OneWire2-style timings  
+- **Copyright (c) 2024 Martin Jansson** — MIT License  
+- **This port:** Richard Stone — witness MCU for dumb packs, 5S + dual NTC, 22×8 mm PCB spec in `tools/attiny1616-witness/pcb/DESIGN.md`
+
 ## MicroPython / Raspberry Pi
 
 Firmware targets **MicroPython** on the **Raspberry Pi Pico W**. Thanks to the MicroPython and Raspberry Pi communities for documentation and tooling.

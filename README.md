@@ -16,6 +16,7 @@ We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [CR
 | `main.py` | Pico W firmware: ADC, Wi‑Fi, HTTP API, charger logic, embedded control UI |
 | `obi.py` | Pico OBI / Makita LXT 1-Wire bridge (GP18 data, GP19 enable by default) |
 | `STM32OBI/` | STM32F103 Blue Pill OBI firmware (USB CDC, ST-Link flash) — see `STM32OBI/README.md` |
+| `tools/` | **jtag2updi** (Mega UPDI programmer) + **attiny1616-witness** firmware & PCB notes |
 | `control.html` | Standalone/offline UI copy (optional; live UI is embedded in `main.py`) |
 
 ## Hardware (typical)
@@ -29,6 +30,8 @@ We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [CR
 **Pico W:** Copy `main.py` and `obi.py` to the Pico (e.g. Thonny). **Wi‑Fi:** copy `secrets.py.example` to `secrets.py` on the device and set `WIFI_SSID` / `WIFI_PASS` (see `.gitignore` — never commit `secrets.py`). Adjust `STATIC_IP` / gateway in `main()` if needed.
 
 **STM32 Blue Pill:** See [STM32OBI/README.md](STM32OBI/README.md) — `pio run -t upload` via ST-Link; host readouts over micro USB (CDC) at 9600 baud.
+
+**ATtiny1616 witness:** See [tools/attiny1616-witness/README.md](tools/attiny1616-witness/README.md); program via [tools/jtag2updi](tools/jtag2updi/SETUP-ARDUINO-MEGA.md) on Arduino Mega.
 
 ## Publishing to GitHub
 

@@ -9,6 +9,9 @@
 /** Patch version number (x.x.X) */
 #define OBI_VERSION_PATCH 0
 
+/** Witness pack maintenance on 1-Wire (see tools/attiny1616-witness/include/witness_onewire_cmds.h). */
+#define OW_WITNESS_CMD 0x57
+
 OneWire makita(ONEWIRE_PIN);
 
 void cmd_and_read_33(byte *cmd, uint8_t cmd_len, byte *rsp, uint8_t rsp_len) {
@@ -50,22 +53,24 @@ void cmd_and_read_cc(byte *cmd, uint8_t cmd_len, byte *rsp, uint8_t rsp_len) {
 	}
 }
 
-void cmd_and_read(byte *cmd, uint8_t cmd_len, byte *rsp, uint8_t rsp_len) {
+void witness_bus_transact(uint8_t subcmd, byte *tx, uint8_t tx_len, byte *rsp, uint8_t rsp_len) {
 	int i;
 	makita.reset();
 	delayMicroseconds(400);
-
-	for (i=0; i < cmd_len; i++) {
+	makita.write(OW_WITNESS_CMD, 0);
+	delayMicroseconds(90);
+	makita.write(subcmd, 0);
+	delayMicroseconds(90);
+	makita.write(tx_len, 0);
+	for (i = 0; i < tx_len; i++) {
 		delayMicroseconds(90);
-		makita.write(cmd[i],0);
+		makita.write(tx[i], 0);
 	}
-
-	for (i=0; i < rsp_len; i++) {
+	for (i = 0; i < rsp_len; i++) {
 		delayMicroseconds(90);
 		rsp[i] = makita.read();
 	}
 }
-
 
 void setup() {
 	Serial.begin(9600);
@@ -156,6 +161,13 @@ void read_usb() {
                 break;
             case 0xCC:
                 cmd_and_read_cc(data, len, &rsp[2], rsp_len);
+                break;
+            case OW_WITNESS_CMD:
+                if (len >= 2) {
+                    witness_bus_transact(data[0], &data[2], data[1], &rsp[2], rsp_len);
+                } else {
+                    rsp_len = 0;
+                }
                 break;
             default:
                 rsp_len = 0;

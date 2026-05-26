@@ -67,7 +67,7 @@ Use upstream `read_battery.py` on an OBI reader in emulate mode; it reports the 
 
 ### Program a profile over the pack bus (recommended)
 
-Connect **STM32OBI** (or Arduino OBI) to the pack clips. Flash firmware that includes OBI cmd **`0x57`** (included in this repo’s `STM32OBI`).
+Connect **STM32OBI**, **Pico W** (`obi.py`), or Arduino OBI to the pack clips. OBI cmd **`0x57`** is implemented in `STM32OBI` and `obi.py` in this repo.
 
 ```powershell
 # Status over pack 1-Wire (charger/OBI reader enables the pack)

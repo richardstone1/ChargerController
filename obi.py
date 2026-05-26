@@ -22,6 +22,9 @@ READ_DATA_REQUEST = bytes([0x01, 0x04, 0x1D, 0xCC, 0xD7, 0x00, 0x00, 0xFF])
 MODEL_CMD = bytes([0x01, 0x02, 0x10, 0xCC, 0xDC, 0x0C])
 READ_MSG_CMD = bytes([0x01, 0x02, 0x28, 0x33, 0xAA, 0x00])
 
+# Witness pack-bus maintenance (tools/attiny1616-witness/include/witness_onewire_cmds.h)
+OBI_WITNESS_BUS_CMD = 0x57
+
 
 class _BitBangOneWire:
     """Minimal Dallas 1-Wire master (RP2040 open-drain + pull-up)."""
@@ -120,6 +123,23 @@ class MakitaOBI:
             _gap()
             rsp_out[i] = ow.read_byte()
 
+    def _witness_bus_transact(self, subcmd, tx, rsp_out):
+        """Tunnel witness EEPROM/profile cmds on pack 1-Wire (primary 0x57)."""
+        ow = self._ow
+        ow.reset()
+        time.sleep_us(400)
+        ow.write_byte(OBI_WITNESS_BUS_CMD)
+        _gap()
+        ow.write_byte(subcmd)
+        _gap()
+        ow.write_byte(len(tx))
+        for b in tx:
+            _gap()
+            ow.write_byte(b)
+        for i in range(len(rsp_out)):
+            _gap()
+            rsp_out[i] = ow.read_byte()
+
     def _cmd_and_read_raw(self, cmd, rsp_out):
         ow = self._ow
         ow.reset()
@@ -208,6 +228,15 @@ class MakitaOBI:
             elif cmd == 0xCC:
                 buf = bytearray(rsp_len)
                 self._cmd_and_read_cc(data, buf)
+                out[2 : 2 + rsp_len] = buf
+            elif cmd == OBI_WITNESS_BUS_CMD:
+                if len(data) < 2:
+                    return bytes([cmd, 0])
+                subcmd = data[0]
+                tx_len = data[1]
+                tx = data[2 : 2 + tx_len]
+                buf = bytearray(rsp_len)
+                self._witness_bus_transact(subcmd, tx, buf)
                 out[2 : 2 + rsp_len] = buf
             else:
                 raise ValueError("unsupported cmd 0x%02x" % cmd)

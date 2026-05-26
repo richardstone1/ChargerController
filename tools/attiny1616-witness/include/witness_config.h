@@ -36,7 +36,7 @@
 
 #define OBI_BAUD          9600
 #define OBI_VERSION_MAJOR 0
-#define OBI_VERSION_MINOR 1
+#define OBI_VERSION_MINOR 3
 #define OBI_VERSION_PATCH 0
 
 #endif

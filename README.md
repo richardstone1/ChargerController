@@ -3,7 +3,8 @@
 Open-source charger and battery telemetry: **MicroPython** on **Raspberry Pi Pico W** (web UI, safety, OBI bridge) plus a **PlatformIO** **STM32 Blue Pill** port of the same OBI host protocol (`STM32OBI/`).
 
 **License:** [MIT](LICENSE) — collaborative use and modification are encouraged.  
-**Upstream credit:** OBI-related code traces to [Martin Jansson](https://github.com/mnh-jansson)’s [Open Battery Information](https://github.com/mnh-jansson/open-battery-information) project — see [CREDITS.md](CREDITS.md).
+**Upstream credit:** OBI-related code traces to [Martin Jansson](https://github.com/mnh-jansson)’s [Open Battery Information](https://github.com/mnh-jansson/open-battery-information) project — see [CREDITS.md](CREDITS.md).  
+**Downstream OBI fork:** [richardstone1/open-battery-information](https://github.com/richardstone1/open-battery-information) (Arduino/STM32 ports, capture tools).
 
 ## Contributing
 
